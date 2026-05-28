@@ -1,0 +1,45 @@
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>Generador</title>
+
+</head>
+
+<body>
+
+    <h1>
+        SISTEMA FUNCIONANDO
+    </h1>
+
+    <form method="POST">
+
+        {% for variable in variables %}
+
+        <p>{{ variable }}</p>
+
+        <input
+            type="text"
+            name="{{ variable }}"
+        >
+
+        <br><br>
+
+        {% endfor %}
+
+        <button type="submit">
+
+            Generar Documento
+
+        </button>
+
+    </form>
+
+</body>
+
+</html>
+
