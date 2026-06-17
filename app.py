@@ -70,31 +70,21 @@ def reemplazar(doc, valores):
 # ENVIAR CORREO
 # =========================
 
-def enviar_correo(destino, docx_file, pdf_file):
+def enviar_correo(destino, docx_file):
 
     msg = EmailMessage()
     msg["Subject"] = "Documento generado"
     msg["From"] = EMAIL_USER
     msg["To"] = destino
 
-    msg.set_content("Adjunto encontrarás el documento en Word y PDF.")
+    msg.set_content("Adjunto encontrarás el documento en formato Word.")
 
-    # DOCX
     with open(docx_file, "rb") as f:
         msg.add_attachment(
             f.read(),
             maintype="application",
             subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename="documento.docx"
-        )
-
-    # PDF
-    with open(pdf_file, "rb") as f:
-        msg.add_attachment(
-            f.read(),
-            maintype="application",
-            subtype="pdf",
-            filename="documento.pdf"
         )
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
