@@ -1,6 +1,5 @@
 import os
 import re
-import subprocess
 import smtplib
 
 from email.message import EmailMessage
@@ -20,7 +19,6 @@ EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASSWORD")
 
 os.makedirs(CARPETA, exist_ok=True)
-
 
 # =========================
 # OBTENER VARIABLES
@@ -42,7 +40,6 @@ def obtener_variables():
 
     return sorted(list(variables))
 
-
 # =========================
 # REEMPLAZAR VARIABLES
 # =========================
@@ -51,33 +48,37 @@ def reemplazar(doc, valores):
 
     for p in doc.paragraphs:
         for run in p.runs:
+            texto = run.text
             for k, v in valores.items():
-                run.text = run.text.replace(f"{{{{{k}}}}}", v)
-                run.text = run.text.replace(f"[{k}]", v)
+                texto = texto.replace(f"{{{{{k}}}}}", v)
+                texto = texto.replace(f"[{k}]", v)
+            run.text = texto
 
     for t in doc.tables:
         for row in t.rows:
             for cell in row.cells:
+                texto = cell.text
                 for k, v in valores.items():
-                    cell.text = cell.text.replace(f"{{{{{k}}}}}", v)
-                    cell.text = cell.text.replace(f"[{k}]", v)
+                    texto = texto.replace(f"{{{{{k}}}}}", v)
+                    texto = texto.replace(f"[{k}]", v)
+                cell.text = texto
 
-
-# =========================
-# CONVERTIR A PDF (RENDER)
-# =========================
 # =========================
 # ENVIAR CORREO
 # =========================
 
 def enviar_correo(destino, docx_file):
 
+    if not EMAIL_USER or not EMAIL_PASS:
+        print("No se configuró EMAIL_USER o EMAIL_PASSWORD.")
+        return
+
     msg = EmailMessage()
     msg["Subject"] = "Documento generado"
     msg["From"] = EMAIL_USER
     msg["To"] = destino
 
-    msg.set_content("Adjunto encontrarás el documento en formato Word.")
+    msg.set_content("Adjunto encontrarás el documento generado.")
 
     with open(docx_file, "rb") as f:
         msg.add_attachment(
@@ -91,7 +92,6 @@ def enviar_correo(destino, docx_file):
         smtp.login(EMAIL_USER, EMAIL_PASS)
         smtp.send_message(msg)
 
-
 # =========================
 # RUTA PRINCIPAL
 # =========================
@@ -103,32 +103,41 @@ def index():
 
     if request.method == "POST":
 
-        valores = {
-            v: request.form.get(v, "")
-            for v in variables
-        }
+        valores = {}
 
-        correo = request.form.get("correo")
+        for variable in variables:
+            valores[variable] = request.form.get(variable, "")
+
+        correo = request.form.get("correo", "").strip()
 
         doc = Document(PLANTILLA)
+
         reemplazar(doc, valores)
 
         docx_path = os.path.join(CARPETA, "documento.docx")
+
         doc.save(docx_path)
 
-    
-
         if correo:
-            enviar_correo(correo, docx_path, pdf_path)
+            try:
+                enviar_correo(correo, docx_path)
+            except Exception as e:
+                print("Error enviando correo:", e)
 
-    
+        return send_file(
+            docx_path,
+            as_attachment=True,
+            download_name="documento.docx"
+        )
 
-    
-
+    return render_template(
+        "index.html",
+        variables=variables
+    )
 
 # =========================
 # RUN
 # =========================
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
