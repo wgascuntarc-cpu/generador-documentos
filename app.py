@@ -8,7 +8,6 @@ from docx import Document
 
 app = Flask(__name__)
 
-# =========================
 # CONFIGURACIÓN
 # =========================
 
