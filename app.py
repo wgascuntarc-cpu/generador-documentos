@@ -142,12 +142,12 @@ def index():
         docx_path = os.path.join(CARPETA, "documento.docx")
         doc.save(docx_path)
 
-        pdf_path = convertir_pdf(docx_path)
+    
 
         if correo:
             enviar_correo(correo, docx_path, pdf_path)
 
-        return send_file(pdf_path, as_attachment=True)
+    
 
     
 
