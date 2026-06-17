@@ -1,45 +1,28 @@
-
 <!DOCTYPE html>
-<html lang="es">
-
+<html>
 <head>
-
-    <meta charset="UTF-8">
-
-    <title>Generador</title>
-
+    <title>Generador de Documentos</title>
 </head>
 
 <body>
 
-    <h1>
-        SISTEMA FUNCIONANDO
-    </h1>
+<h2>Generador de Documentos</h2>
 
-    <form method="POST">
+<form method="POST">
 
-        {% for variable in variables %}
+    <label>Correo:</label><br>
+    <input type="email" name="correo" required>
+    <br><br>
 
-        <p>{{ variable }}</p>
-
-        <input
-            type="text"
-            name="{{ variable }}"
-        >
-
+    {% for variable in variables %}
+        <label>{{ variable }}</label><br>
+        <input type="text" name="{{ variable }}" required>
         <br><br>
+    {% endfor %}
 
-        {% endfor %}
+    <button type="submit">Generar Documento</button>
 
-        <button type="submit">
-
-            Generar Documento
-
-        </button>
-
-    </form>
+</form>
 
 </body>
-
 </html>
-
