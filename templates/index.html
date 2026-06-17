@@ -1,28 +1,21 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Generador de Documentos</title>
-</head>
+@app.route("/", methods=["GET", "POST"])
+def index():
 
-<body>
+    variables = obtener_variables()
 
-<h2>Generador de Documentos</h2>
+    if request.method == "POST":
 
-<form method="POST">
+        valores = {
+            v: request.form.get(v, "")
+            for v in variables
+        }
 
-    <label>Correo:</label><br>
-    <input type="email" name="correo" required>
-    <br><br>
+        doc = Document(PLANTILLA)
+        reemplazar(doc, valores)
 
-    {% for variable in variables %}
-        <label>{{ variable }}</label><br>
-        <input type="text" name="{{ variable }}" required>
-        <br><br>
-    {% endfor %}
+        docx_path = os.path.join(CARPETA, "documento.docx")
+        doc.save(docx_path)
 
-    <button type="submit">Generar Documento</button>
+        return send_file(docx_path, as_attachment=True)
 
-</form>
-
-</body>
-</html>
+    return render_template("index.html", variables=variables)
