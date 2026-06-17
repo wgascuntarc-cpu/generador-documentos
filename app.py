@@ -149,7 +149,7 @@ def index():
 
         return send_file(pdf_path, as_attachment=True)
 
-    return render_template("index.html", variables=variables)
+    
 
 
 # =========================
