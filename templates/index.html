@@ -10,12 +10,21 @@ def index():
             for v in variables
         }
 
+        correo = request.form.get("correo")
+
         doc = Document(PLANTILLA)
         reemplazar(doc, valores)
 
         docx_path = os.path.join(CARPETA, "documento.docx")
         doc.save(docx_path)
 
-        return send_file(docx_path, as_attachment=True)
+        if correo:
+            enviar_correo(correo, docx_path)
+
+        return send_file(
+            docx_path,
+            as_attachment=True,
+            download_name="documento.docx"
+        )
 
     return render_template("index.html", variables=variables)
