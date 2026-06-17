@@ -66,22 +66,6 @@ def reemplazar(doc, valores):
 # =========================
 # CONVERTIR A PDF (RENDER)
 # =========================
-
-def convertir_pdf(docx_path):
-
-    subprocess.run([
-        "soffice",
-        "--headless",
-        "--convert-to",
-        "pdf",
-        docx_path,
-        "--outdir",
-        CARPETA
-    ], check=True)
-
-    return docx_path.replace(".docx", ".pdf")
-
-
 # =========================
 # ENVIAR CORREO
 # =========================
