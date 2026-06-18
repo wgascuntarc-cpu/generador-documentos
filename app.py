@@ -8,7 +8,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 
 
-# Cargar variables .env
+# Cargar variables del archivo .env
 load_dotenv()
 
 
@@ -16,29 +16,33 @@ app = Flask(__name__)
 
 
 # =====================================
-# CONFIGURACIÓN
+# CONFIGURACIÓN DE ARCHIVOS
 # =====================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 PLANTILLA = os.path.join(
     BASE_DIR,
     "plantilla.docx"
 )
 
-CARPETA = os.path.join(
+
+CARPETA_SALIDA = os.path.join(
     BASE_DIR,
     "documentos_generados"
 )
 
+
 os.makedirs(
-    CARPETA,
+    CARPETA_SALIDA,
     exist_ok=True
 )
 
 
+
 # =====================================
-# DATOS CORREO
+# CONFIGURACIÓN CORREO
 # =====================================
 
 EMAIL = os.environ.get("EMAIL_USER")
@@ -49,8 +53,13 @@ PASSWORD = os.environ.get("EMAIL_PASSWORD")
 DESTINO = "geovanyasc@gmail.com"
 
 
+
+print("Correo configurado:", EMAIL)
+
+
+
 # =====================================
-# OBTENER VARIABLES WORD
+# LEER VARIABLES DEL WORD
 # =====================================
 
 def obtener_variables():
@@ -60,8 +69,10 @@ def obtener_variables():
     texto = ""
 
 
-    for p in doc.paragraphs:
-        texto += p.text + "\n"
+    for parrafo in doc.paragraphs:
+
+        texto += parrafo.text + "\n"
+
 
 
     for tabla in doc.tables:
@@ -73,40 +84,38 @@ def obtener_variables():
                 texto += celda.text + "\n"
 
 
-    variables = sorted(
-        set(
-            re.findall(
-                r"\{\{(.*?)\}\}",
-                texto
-            )
-        )
+
+    variables = re.findall(
+        r"\{\{(.*?)\}\}",
+        texto
     )
 
 
-    return variables
+    return sorted(set(variables))
 
 
 
 # =====================================
-# REEMPLAZAR CAMPOS
+# CAMBIAR DATOS EN WORD
 # =====================================
 
-def reemplazar(doc, valores):
+def reemplazar_variables(doc, datos):
 
 
-    for p in doc.paragraphs:
+    for parrafo in doc.paragraphs:
 
-        for clave, valor in valores.items():
+        for clave, valor in datos.items():
 
             marcador = "{{" + clave + "}}"
 
 
-            if marcador in p.text:
+            if marcador in parrafo.text:
 
-                p.text = p.text.replace(
+                parrafo.text = parrafo.text.replace(
                     marcador,
                     valor
                 )
+
 
 
     for tabla in doc.tables:
@@ -116,17 +125,17 @@ def reemplazar(doc, valores):
             for celda in fila.cells:
 
 
-                for p in celda.paragraphs:
+                for parrafo in celda.paragraphs:
 
 
-                    for clave, valor in valores.items():
+                    for clave, valor in datos.items():
 
                         marcador = "{{" + clave + "}}"
 
 
-                        if marcador in p.text:
+                        if marcador in parrafo.text:
 
-                            p.text = p.text.replace(
+                            parrafo.text = parrafo.text.replace(
                                 marcador,
                                 valor
                             )
@@ -134,17 +143,27 @@ def reemplazar(doc, valores):
 
 
 # =====================================
-# ENVIAR DOCUMENTO POR CORREO
+# ENVIAR CORREO
 # =====================================
 
 def enviar_correo(archivo):
 
 
+    print("=== INICIANDO ENVIO ===")
+
+
+    print("Desde:", EMAIL)
+
+    print("Destino:", DESTINO)
+
+
+
     if not EMAIL or not PASSWORD:
 
         raise Exception(
-            "Faltan EMAIL_USER o EMAIL_PASSWORD"
+            "No existe EMAIL_USER o EMAIL_PASSWORD"
         )
+
 
 
     mensaje = EmailMessage()
@@ -161,18 +180,17 @@ def enviar_correo(archivo):
     mensaje["To"] = DESTINO
 
 
-    mensaje.set_content(
-        """
-        Se ha generado un nuevo documento.
 
-        Adjunto encontrará el archivo.
-        """
+    mensaje.set_content(
+        "Se adjunta documento generado por el sistema."
     )
+
 
 
     with open(archivo, "rb") as f:
 
         contenido = f.read()
+
 
 
     mensaje.add_attachment(
@@ -183,137 +201,126 @@ def enviar_correo(archivo):
     )
 
 
+
+    print("Conectando con Gmail...")
+
+
+
     with smtplib.SMTP_SSL(
         "smtp.gmail.com",
         465
-    ) as smtp:
+    ) as servidor:
 
 
-        smtp.login(
+        servidor.login(
             EMAIL,
             PASSWORD
         )
 
 
-        smtp.send_message(
+        servidor.send_message(
             mensaje
         )
 
 
 
+    print("=== CORREO ENVIADO CORRECTAMENTE ===")
+
+
+
 # =====================================
-# PÁGINA PRINCIPAL
+# PAGINA PRINCIPAL
 # =====================================
 
 @app.route(
     "/",
-    methods=["GET", "POST"]
+    methods=["GET","POST"]
 )
+
 def index():
 
 
-    try:
-
-        variables = obtener_variables()
-
-
-        if request.method == "POST":
-
-
-            valores = {}
-
-
-            for variable in variables:
-
-                valores[variable] = request.form.get(
-                    variable,
-                    ""
-                )
+    variables = obtener_variables()
 
 
 
-            doc = Document(
-                PLANTILLA
-            )
+    if request.method == "POST":
 
 
-            reemplazar(
-                doc,
-                valores
+        datos = {}
+
+
+
+        for variable in variables:
+
+            datos[variable] = request.form.get(
+                variable,
+                ""
             )
 
 
 
-            docx_path = os.path.join(
-                CARPETA,
-                "documento.docx"
-            )
-
-
-
-            doc.save(
-                docx_path
-            )
-
-
-
-            # ENVIAR AUTOMÁTICAMENTE
-            try:
-
-                enviar_correo(
-                    docx_path
-                )
-
-                print(
-                    "Correo enviado correctamente"
-                )
-
-
-            except Exception as e:
-
-                print(
-                    "ERROR ENVIANDO CORREO:",
-                    e
-                )
-
-
-
-            return send_file(
-                docx_path,
-                as_attachment=True,
-                download_name="documento.docx"
-            )
-
-
-
-        return render_template(
-            "index.html",
-            variables=variables
+        documento = Document(
+            PLANTILLA
         )
 
 
 
-    except Exception as e:
+        reemplazar_variables(
+            documento,
+            datos
+        )
 
 
-        import traceback
+
+        archivo = os.path.join(
+            CARPETA_SALIDA,
+            "documento.docx"
+        )
 
 
-        return f"""
 
-        <h2>Error encontrado</h2>
+        documento.save(
+            archivo
+        )
 
-        <pre>{e}</pre>
 
-        <pre>{traceback.format_exc()}</pre>
 
-        """,500
+        # ENVIAR CORREO AUTOMÁTICO
 
+        try:
+
+            enviar_correo(
+                archivo
+            )
+
+
+        except Exception as error:
+
+            print(
+                "ERROR DEL CORREO:",
+                error
+            )
+
+
+
+        return send_file(
+            archivo,
+            as_attachment=True,
+            download_name="documento.docx"
+        )
+
+
+
+    return render_template(
+        "index.html",
+        variables=variables
+    )
 
 
 
 # =====================================
-# INICIO
+# EJECUTAR
 # =====================================
 
 if __name__ == "__main__":
