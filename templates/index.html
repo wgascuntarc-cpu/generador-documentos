@@ -12,10 +12,17 @@ def index():
 
             correo = request.form.get("correo", "").strip()
 
+            if not os.path.exists(PLANTILLA):
+                raise FileNotFoundError(
+                    f"No existe la plantilla: {PLANTILLA}"
+                )
+
             doc = Document(PLANTILLA)
+
             reemplazar(doc, valores)
 
             docx_path = os.path.join(CARPETA, "documento.docx")
+
             doc.save(docx_path)
 
             if correo:
@@ -30,7 +37,15 @@ def index():
                 download_name="documento.docx"
             )
 
-        return render_template("index.html", variables=variables)
+        return render_template(
+            "index.html",
+            variables=variables
+        )
 
     except Exception as e:
-        return f"<h2>Error:</h2><pre>{e}</pre>", 500
+        import traceback
+        return f"""
+        <h2>Error</h2>
+        <pre>{e}</pre>
+        <pre>{traceback.format_exc()}</pre>
+        """, 500
