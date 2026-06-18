@@ -1,183 +1,291 @@
-
 import os
 import re
+import smtplib
+
 from flask import Flask, render_template, request, send_file
 from docx import Document
+from email.message import EmailMessage
+from dotenv import load_dotenv
 
-# =========================================
-# CREAR APP FLASK
-# =========================================
+
+load_dotenv()
+
 
 app = Flask(__name__)
 
-# =========================================
-# CONFIGURACIÓN
-# =========================================
 
-PLANTILLA = "plantilla.docx"
+# ==============================
+# RUTAS ARCHIVOS
+# ==============================
 
-CARPETA_SALIDA = "documentos_generados"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Crear carpeta si no existe
-if not os.path.exists(CARPETA_SALIDA):
+PLANTILLA = os.path.join(
+    BASE_DIR,
+    "plantilla.docx"
+)
 
-    os.makedirs(CARPETA_SALIDA)
+CARPETA_SALIDA = os.path.join(
+    BASE_DIR,
+    "documentos_generados"
+)
 
-# =========================================
-# LEER VARIABLES DEL WORD
-# =========================================
+os.makedirs(
+    CARPETA_SALIDA,
+    exist_ok=True
+)
+
+
+# ==============================
+# CORREO
+# ==============================
+
+EMAIL_USER = os.getenv("EMAIL_USER")
+
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+
+DESTINO = "geovanyasc@gmail.com"
+
+
+print("Correo configurado:", EMAIL_USER)
+
+
+
+# ==============================
+# LEER CAMPOS DEL WORD
+# ==============================
 
 def obtener_variables():
 
     doc = Document(PLANTILLA)
 
-    variables = set()
+    texto = ""
 
-    # Buscar en párrafos
     for p in doc.paragraphs:
+        texto += p.text + "\n"
 
-        texto = p.text
 
-        vars1 = re.findall(
-            r"\{\{(.*?)\}\}",
-            texto
-        )
-
-        vars2 = re.findall(
-            r"\[(.*?)\]",
-            texto
-        )
-
-        variables.update(vars1)
-        variables.update(vars2)
-
-    # Buscar en tablas
     for tabla in doc.tables:
 
         for fila in tabla.rows:
 
             for celda in fila.cells:
 
-                texto = celda.text
+                texto += celda.text + "\n"
 
-                vars1 = re.findall(
-                    r"\{\{(.*?)\}\}",
-                    texto
+
+    return sorted(
+        set(
+            re.findall(
+                r"\{\{(.*?)\}\}",
+                texto
+            )
+        )
+    )
+
+
+
+# ==============================
+# REEMPLAZAR DATOS
+# ==============================
+
+def reemplazar_variables(doc, datos):
+
+    for p in doc.paragraphs:
+
+        for clave, valor in datos.items():
+
+            marcador = "{{" + clave + "}}"
+
+            if marcador in p.text:
+
+                p.text = p.text.replace(
+                    marcador,
+                    valor
                 )
 
-                vars2 = re.findall(
-                    r"\[(.*?)\]",
-                    texto
-                )
 
-                variables.update(vars1)
-                variables.update(vars2)
+    for tabla in doc.tables:
 
-    return list(variables)
+        for fila in tabla.rows:
 
-# =========================================
-# PÁGINA PRINCIPAL
-# =========================================
+            for celda in fila.cells:
 
-@app.route("/", methods=["GET", "POST"])
+                for p in celda.paragraphs:
+
+                    for clave, valor in datos.items():
+
+                        marcador = "{{" + clave + "}}"
+
+
+                        if marcador in p.text:
+
+                            p.text = p.text.replace(
+                                marcador,
+                                valor
+                            )
+
+
+
+# ==============================
+# ENVIAR CORREO
+# ==============================
+
+def enviar_correo(archivo):
+
+    print("ENTRO A ENVIAR CORREO")
+
+
+    if not EMAIL_USER or not EMAIL_PASSWORD:
+
+        print("Falta configuración de correo")
+        return
+
+
+    mensaje = EmailMessage()
+
+
+    mensaje["Subject"] = "Documento generado automáticamente"
+
+    mensaje["From"] = EMAIL_USER
+
+    mensaje["To"] = DESTINO
+
+
+    mensaje.set_content(
+        "Adjunto encontrará el documento generado."
+    )
+
+
+    with open(archivo, "rb") as f:
+
+        contenido = f.read()
+
+
+    mensaje.add_attachment(
+        contenido,
+        maintype="application",
+        subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename="documento.docx"
+    )
+
+
+    print("Conectando con Gmail...")
+
+
+    try:
+
+        with smtplib.SMTP_SSL(
+            "smtp.gmail.com",
+            465
+        ) as servidor:
+
+
+            servidor.login(
+                EMAIL_USER,
+                EMAIL_PASSWORD
+            )
+
+
+            servidor.send_message(
+                mensaje
+            )
+
+
+        print("CORREO ENVIADO CORRECTAMENTE")
+
+
+    except Exception as error:
+
+        print(
+            "ERROR ENVIANDO CORREO:",
+            error
+        )
+
+
+
+# ==============================
+# PAGINA WEB
+# ==============================
+
+@app.route(
+    "/",
+    methods=["GET","POST"]
+)
 
 def index():
 
+
     variables = obtener_variables()
 
-    # =====================================
-    # SI ENVÍAN EL FORMULARIO
-    # =====================================
 
     if request.method == "POST":
 
-        nuevo_doc = Document(PLANTILLA)
 
-        valores = {}
+        datos = {}
 
-        # Obtener datos del formulario
+
         for variable in variables:
 
-            valores[variable] = request.form.get(variable)
+            datos[variable] = request.form.get(
+                variable,
+                ""
+            )
 
-        # =================================
-        # REEMPLAZAR EN PÁRRAFOS
-        # =================================
 
-        for p in nuevo_doc.paragraphs:
-
-            for variable, valor in valores.items():
-
-                p.text = p.text.replace(
-                    f"{{{{{variable}}}}}",
-                    valor
-                )
-
-                p.text = p.text.replace(
-                    f"[{variable}]",
-                    valor
-                )
-
-        # =================================
-        # REEMPLAZAR EN TABLAS
-        # =================================
-
-        for tabla in nuevo_doc.tables:
-
-            for fila in tabla.rows:
-
-                for celda in fila.cells:
-
-                    for variable, valor in valores.items():
-
-                        celda.text = celda.text.replace(
-                            f"{{{{{variable}}}}}",
-                            valor
-                        )
-
-                        celda.text = celda.text.replace(
-                            f"[{variable}]",
-                            valor
-                        )
-
-        # =================================
-        # GUARDAR DOCUMENTO
-        # =================================
-
-        nombre_archivo = "documento_generado.docx"
-
-        ruta_guardado = os.path.join(
-            CARPETA_SALIDA,
-            nombre_archivo
+        documento = Document(
+            PLANTILLA
         )
 
-        nuevo_doc.save(ruta_guardado)
 
-        # =================================
-        # DESCARGAR ARCHIVO
-        # =================================
+        reemplazar_variables(
+            documento,
+            datos
+        )
+
+
+        archivo = os.path.join(
+            CARPETA_SALIDA,
+            "documento.docx"
+        )
+
+
+        documento.save(
+            archivo
+        )
+
+
+        print(
+            "DOCUMENTO CREADO:",
+            archivo
+        )
+
+
+        enviar_correo(
+            archivo
+        )
+
 
         return send_file(
-            ruta_guardado,
-            as_attachment=True
+            archivo,
+            as_attachment=True,
+            download_name="documento.docx"
         )
 
-    # =====================================
-    # MOSTRAR FORMULARIO
-    # =====================================
 
     return render_template(
         "index.html",
         variables=variables
     )
 
-# =========================================
-# EJECUTAR SERVIDOR
-# =========================================
+
+
+# ==============================
+# INICIO
+# ==============================
 
 if __name__ == "__main__":
 
     app.run(
         debug=True
     )
-
