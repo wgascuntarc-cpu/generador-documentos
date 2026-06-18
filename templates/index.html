@@ -1,51 +1,91 @@
-@app.route("/", methods=["GET", "POST"])
-def index():
-    try:
-        variables = obtener_variables()
+<!DOCTYPE html>
+<html lang="es">
 
-        if request.method == "POST":
+<head>
 
-            valores = {
-                v: request.form.get(v, "")
-                for v in variables
-            }
+<meta charset="UTF-8">
 
-            correo = request.form.get("correo", "").strip()
+<title>Generador de documentos</title>
 
-            if not os.path.exists(PLANTILLA):
-                raise FileNotFoundError(
-                    f"No existe la plantilla: {PLANTILLA}"
-                )
+<style>
 
-            doc = Document(PLANTILLA)
+body{
+    font-family: Arial;
+    margin:40px;
+}
 
-            reemplazar(doc, valores)
+input{
+    width:300px;
+    padding:8px;
+    margin:5px;
+}
 
-            docx_path = os.path.join(CARPETA, "documento.docx")
+button{
+    padding:10px 20px;
+    background:#0066cc;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
 
-            doc.save(docx_path)
+</style>
 
-            if correo:
-                try:
-                    enviar_correo(correo, docx_path)
-                except Exception as e:
-                    print("Error enviando correo:", e)
+</head>
 
-            return send_file(
-                docx_path,
-                as_attachment=True,
-                download_name="documento.docx"
-            )
 
-        return render_template(
-            "index.html",
-            variables=variables
-        )
+<body>
 
-    except Exception as e:
-        import traceback
-        return f"""
-        <h2>Error</h2>
-        <pre>{e}</pre>
-        <pre>{traceback.format_exc()}</pre>
-        """, 500
+
+<h1>Generador de documentos</h1>
+
+
+<form method="POST">
+
+
+{% for variable in variables %}
+
+
+<label>
+{{ variable }}
+</label>
+
+<br>
+
+<input 
+type="text"
+name="{{ variable }}"
+required
+>
+
+<br><br>
+
+
+{% endfor %}
+
+
+<label>
+Correo (opcional)
+</label>
+
+<br>
+
+<input 
+type="email"
+name="correo"
+>
+
+
+<br><br>
+
+
+<button type="submit">
+Generar documento
+</button>
+
+
+</form>
+
+
+</body>
+
+</html>
