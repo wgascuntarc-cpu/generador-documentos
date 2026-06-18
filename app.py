@@ -2,141 +2,212 @@ import os
 import re
 import smtplib
 
-from email.message import EmailMessage
 from flask import Flask, render_template, request, send_file
 from docx import Document
+from email.message import EmailMessage
 
 app = Flask(__name__)
 
-# CONFIGURACIÓN
-# =========================
+# =====================================
+# RUTAS
+# =====================================
 
-PLANTILLA = "plantilla.docx"
-CARPETA = "documentos_generados"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASSWORD")
+PLANTILLA = os.path.join(BASE_DIR, "plantilla.docx")
+
+CARPETA = os.path.join(BASE_DIR, "documentos_generados")
 
 os.makedirs(CARPETA, exist_ok=True)
 
-# =========================
-# OBTENER VARIABLES
-# =========================
+# =====================================
+# DATOS DEL CORREO
+# =====================================
+
+EMAIL = os.environ.get("EMAIL_USER")
+PASSWORD = os.environ.get("EMAIL_PASSWORD")
+
+# =====================================
+# OBTENER VARIABLES DE LA PLANTILLA
+# =====================================
 
 def obtener_variables():
+
+    if not os.path.exists(PLANTILLA):
+        raise FileNotFoundError(
+            f"No existe la plantilla:\n{PLANTILLA}"
+        )
+
     doc = Document(PLANTILLA)
-    variables = set()
+
+    texto = ""
 
     for p in doc.paragraphs:
-        variables.update(re.findall(r"\{\{(.*?)\}\}", p.text))
-        variables.update(re.findall(r"\[(.*?)\]", p.text))
+        texto += p.text + "\n"
 
-    for t in doc.tables:
-        for row in t.rows:
-            for cell in row.cells:
-                variables.update(re.findall(r"\{\{(.*?)\}\}", cell.text))
-                variables.update(re.findall(r"\[(.*?)\]", cell.text))
+    for tabla in doc.tables:
+        for fila in tabla.rows:
+            for celda in fila.cells:
+                texto += celda.text + "\n"
 
-    return sorted(list(variables))
+    variables = sorted(
+        list(
+            set(
+                re.findall(r"\{\{(.*?)\}\}", texto)
+            )
+        )
+    )
 
-# =========================
+    return variables
+
+# =====================================
 # REEMPLAZAR VARIABLES
-# =========================
+# =====================================
 
 def reemplazar(doc, valores):
 
     for p in doc.paragraphs:
-        for run in p.runs:
-            texto = run.text
-            for k, v in valores.items():
-                texto = texto.replace(f"{{{{{k}}}}}", v)
-                texto = texto.replace(f"[{k}]", v)
-            run.text = texto
 
-    for t in doc.tables:
-        for row in t.rows:
-            for cell in row.cells:
-                texto = cell.text
-                for k, v in valores.items():
-                    texto = texto.replace(f"{{{{{k}}}}}", v)
-                    texto = texto.replace(f"[{k}]", v)
-                cell.text = texto
+        for clave, valor in valores.items():
 
-# =========================
+            marcador = "{{" + clave + "}}"
+
+            if marcador in p.text:
+
+                p.text = p.text.replace(
+                    marcador,
+                    valor
+                )
+
+    for tabla in doc.tables:
+
+        for fila in tabla.rows:
+
+            for celda in fila.cells:
+
+                for p in celda.paragraphs:
+
+                    for clave, valor in valores.items():
+
+                        marcador = "{{" + clave + "}}"
+
+                        if marcador in p.text:
+
+                            p.text = p.text.replace(
+                                marcador,
+                                valor
+                            )
+
+# =====================================
 # ENVIAR CORREO
-# =========================
+# =====================================
 
-def enviar_correo(destino, docx_file):
+def enviar_correo(destino, archivo):
 
-    if not EMAIL_USER or not EMAIL_PASS:
-        print("No se configuró EMAIL_USER o EMAIL_PASSWORD.")
-        return
-
-    msg = EmailMessage()
-    msg["Subject"] = "Documento generado"
-    msg["From"] = EMAIL_USER
-    msg["To"] = destino
-
-    msg.set_content("Adjunto encontrarás el documento generado.")
-
-    with open(docx_file, "rb") as f:
-        msg.add_attachment(
-            f.read(),
-            maintype="application",
-            subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
-            filename="documento.docx"
+    if not EMAIL or not PASSWORD:
+        raise Exception(
+            "No existen EMAIL_USER o EMAIL_PASSWORD en Render."
         )
 
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(EMAIL_USER, EMAIL_PASS)
-        smtp.send_message(msg)
+    mensaje = EmailMessage()
 
-# =========================
+    mensaje["Subject"] = "Documento generado"
+
+    mensaje["From"] = EMAIL
+
+    mensaje["To"] = destino
+
+    mensaje.set_content(
+        "Adjunto encontrará el documento generado."
+    )
+
+    with open(archivo, "rb") as f:
+        datos = f.read()
+
+    mensaje.add_attachment(
+        datos,
+        maintype="application",
+        subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename="documento.docx"
+    )
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+
+        smtp.login(EMAIL, PASSWORD)
+
+        smtp.send_message(mensaje)
+
+# =====================================
 # RUTA PRINCIPAL
-# =========================
+# =====================================
 
 @app.route("/", methods=["GET", "POST"])
 def index():
 
-    variables = obtener_variables()
+    try:
 
-    if request.method == "POST":
+        variables = obtener_variables()
 
-        valores = {}
+        if request.method == "POST":
 
-        for variable in variables:
-            valores[variable] = request.form.get(variable, "")
+            valores = {}
 
-        correo = request.form.get("correo", "").strip()
+            for variable in variables:
+                valores[variable] = request.form.get(variable, "")
 
-        doc = Document(PLANTILLA)
+            correo = request.form.get("correo", "").strip()
 
-        reemplazar(doc, valores)
+            if not os.path.exists(PLANTILLA):
+                raise FileNotFoundError(
+                    f"No existe la plantilla:\n{PLANTILLA}"
+                )
 
-        docx_path = os.path.join(CARPETA, "documento.docx")
+            doc = Document(PLANTILLA)
 
-        doc.save(docx_path)
+            reemplazar(doc, valores)
 
-        if correo:
-            try:
-                enviar_correo(correo, docx_path)
-            except Exception as e:
-                print("Error enviando correo:", e)
+            docx_path = os.path.join(
+                CARPETA,
+                "documento.docx"
+            )
 
-        return send_file(
-            docx_path,
-            as_attachment=True,
-            download_name="documento.docx"
+            doc.save(docx_path)
+
+            if correo != "":
+
+                try:
+                    enviar_correo(correo, docx_path)
+
+                except Exception as e:
+                    print("ERROR ENVIANDO CORREO:", e)
+
+            return send_file(
+                docx_path,
+                as_attachment=True,
+                download_name="documento.docx"
+            )
+
+        return render_template(
+            "index.html",
+            variables=variables
         )
 
-    return render_template(
-        "index.html",
-        variables=variables
-    )
+    except Exception as e:
 
-# =========================
-# RUN
-# =========================
+        import traceback
+
+        return f"""
+        <h2>Error encontrado</h2>
+
+        <pre>{e}</pre>
+
+        <pre>{traceback.format_exc()}</pre>
+
+        """, 500
+
+# =====================================
+# INICIO
+# =====================================
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)
