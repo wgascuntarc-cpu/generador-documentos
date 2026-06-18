@@ -1,3 +1,4 @@
+import threading
 import os
 import re
 import smtplib
@@ -19,7 +20,7 @@ CARPETA = os.path.join(BASE_DIR, "documentos_generados")
 os.makedirs(CARPETA, exist_ok=True)
 
 # =========================
-# CREDENCIALES (RENDER ENV)
+# CREDENCIALES RENDER
 # =========================
 
 EMAIL_USER = os.getenv("EMAIL_USER")
@@ -33,6 +34,7 @@ def obtener_variables():
     doc = Document(PLANTILLA)
 
     texto = ""
+
     for p in doc.paragraphs:
         texto += p.text + "\n"
 
@@ -121,9 +123,12 @@ def index():
             archivo_salida = os.path.join(CARPETA, "documento.docx")
             doc.save(archivo_salida)
 
-            # enviar correo si existe
+            # ENVIAR CORREO EN SEGUNDO PLANO (IMPORTANTE PARA RENDER)
             if correo:
-                enviar_correo(correo, archivo_salida)
+                threading.Thread(
+                    target=enviar_correo,
+                    args=(correo, archivo_salida)
+                ).start()
 
             return send_file(
                 archivo_salida,
