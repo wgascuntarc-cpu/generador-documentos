@@ -1,45 +1,91 @@
-
 <!DOCTYPE html>
 <html lang="es">
 
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-    <title>Generador</title>
+<title>Generador de documentos</title>
+
+<style>
+
+body{
+    font-family: Arial;
+    margin:40px;
+}
+
+input{
+    width:300px;
+    padding:8px;
+    margin:5px;
+}
+
+button{
+    padding:10px 20px;
+    background:#0066cc;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
+
+</style>
 
 </head>
 
+
 <body>
 
-    <h1>
-        SISTEMA FUNCIONANDO
-    </h1>
 
-    <form method="POST">
+<h1>Generador de documentos</h1>
 
-        {% for variable in variables %}
 
-        <p>{{ variable }}</p>
+<form method="POST">
 
-        <input
-            type="text"
-            name="{{ variable }}"
-        >
 
-        <br><br>
+{% for variable in variables %}
 
-        {% endfor %}
 
-        <button type="submit">
+<label>
+{{ variable }}
+</label>
 
-            Generar Documento
+<br>
 
-        </button>
+<input 
+type="text"
+name="{{ variable }}"
+required
+>
 
-    </form>
+<br><br>
+
+
+{% endfor %}
+
+
+<label>
+Correo (opcional)
+</label>
+
+<br>
+
+<input 
+type="email"
+name="correo"
+>
+
+
+<br><br>
+
+
+<button type="submit">
+Generar documento
+</button>
+
+
+</form>
+
 
 </body>
 
 </html>
-
