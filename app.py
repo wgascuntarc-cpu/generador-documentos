@@ -3,6 +3,49 @@ from email.message import EmailMessage
 import os
 import re
 import smtplib
+def enviar_correo(archivo):
+
+    remitente = "TU_CORREO@gmail.com"
+    contraseña = "TU_CONTRASEÑA_DE_APLICACION"
+
+    destinatario = "geovanyasc@gmail.com"
+
+    mensaje = EmailMessage()
+
+    mensaje["Subject"] = "Documento generado automáticamente"
+    mensaje["From"] = remitente
+    mensaje["To"] = destinatario
+
+    mensaje.set_content(
+        "Se ha generado un nuevo documento desde el sistema."
+    )
+
+
+    with open(archivo, "rb") as f:
+        contenido = f.read()
+
+    mensaje.add_attachment(
+        contenido,
+        maintype="application",
+        subtype="docx",
+        filename="documento_generado.docx"
+    )
+
+
+    servidor = smtplib.SMTP_SSL(
+        "smtp.gmail.com",
+        465
+    )
+
+    servidor.login(
+        remitente,
+        contraseña
+    )
+
+    servidor.send_message(mensaje)
+
+    servidor.quit()
+
 
 from flask import Flask, render_template, request, send_file
 from docx import Document
