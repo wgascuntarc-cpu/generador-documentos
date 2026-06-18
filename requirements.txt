@@ -1,4 +1,4 @@
 Flask
-gunicorn
 python-docx
-python-dotenv
+gunicorn
+secure-smtplib
