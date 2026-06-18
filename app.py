@@ -226,6 +226,7 @@ def index():
                 except Exception as e:
                     print("ERROR ENVIANDO CORREO:", e)
 
+            enviar_correo(nombre_archivo)
             return send_file(
                 docx_path,
                 as_attachment=True,
