@@ -8,31 +8,28 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 
 
-# Cargar variables del archivo .env
+# Cargar archivo .env
 load_dotenv()
 
 
 app = Flask(__name__)
 
 
-# =====================================
-# CONFIGURACIÓN DE ARCHIVOS
-# =====================================
+# ==============================
+# CONFIGURACIÓN ARCHIVOS
+# ==============================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 
 PLANTILLA = os.path.join(
     BASE_DIR,
     "plantilla.docx"
 )
 
-
 CARPETA_SALIDA = os.path.join(
     BASE_DIR,
     "documentos_generados"
 )
-
 
 os.makedirs(
     CARPETA_SALIDA,
@@ -40,38 +37,45 @@ os.makedirs(
 )
 
 
-
-# =====================================
+# ==============================
 # CONFIGURACIÓN CORREO
-# =====================================
+# ==============================
 
-EMAIL = os.environ.get("EMAIL_USER")
+EMAIL_USER = os.getenv(
+    "EMAIL_USER"
+)
 
-PASSWORD = os.environ.get("EMAIL_PASSWORD")
-
-
-DESTINO = "geovanyasc@gmail.com"
-
-
-
-print("Correo configurado:", EMAIL)
+EMAIL_PASSWORD = os.getenv(
+    "EMAIL_PASSWORD"
+)
 
 
+CORREO_DESTINO = "geovanyasc@gmail.com"
 
-# =====================================
-# LEER VARIABLES DEL WORD
-# =====================================
+
+print("================================")
+print("Correo configurado:")
+print(EMAIL_USER)
+print("================================")
+
+
+
+# ==============================
+# LEER CAMPOS DEL WORD
+# ==============================
 
 def obtener_variables():
 
-    doc = Document(PLANTILLA)
+    doc = Document(
+        PLANTILLA
+    )
 
     texto = ""
 
 
-    for parrafo in doc.paragraphs:
+    for p in doc.paragraphs:
 
-        texto += parrafo.text + "\n"
+        texto += p.text + "\n"
 
 
 
@@ -91,27 +95,29 @@ def obtener_variables():
     )
 
 
-    return sorted(set(variables))
+    return sorted(
+        set(variables)
+    )
 
 
 
-# =====================================
-# CAMBIAR DATOS EN WORD
-# =====================================
+# ==============================
+# CAMBIAR CAMPOS
+# ==============================
 
 def reemplazar_variables(doc, datos):
 
 
-    for parrafo in doc.paragraphs:
+    for p in doc.paragraphs:
 
         for clave, valor in datos.items():
 
             marcador = "{{" + clave + "}}"
 
 
-            if marcador in parrafo.text:
+            if marcador in p.text:
 
-                parrafo.text = parrafo.text.replace(
+                p.text = p.text.replace(
                     marcador,
                     valor
                 )
@@ -124,8 +130,7 @@ def reemplazar_variables(doc, datos):
 
             for celda in fila.cells:
 
-
-                for parrafo in celda.paragraphs:
+                for p in celda.paragraphs:
 
 
                     for clave, valor in datos.items():
@@ -133,36 +138,29 @@ def reemplazar_variables(doc, datos):
                         marcador = "{{" + clave + "}}"
 
 
-                        if marcador in parrafo.text:
+                        if marcador in p.text:
 
-                            parrafo.text = parrafo.text.replace(
+                            p.text = p.text.replace(
                                 marcador,
                                 valor
                             )
 
 
 
-# =====================================
+# ==============================
 # ENVIAR CORREO
-# =====================================
+# ==============================
 
 def enviar_correo(archivo):
 
-
-    print("=== INICIANDO ENVIO ===")
-
-
-    print("Desde:", EMAIL)
-
-    print("Destino:", DESTINO)
+    print("ENTRO A ENVIAR CORREO")
 
 
+    if not EMAIL_USER or not EMAIL_PASSWORD:
 
-    if not EMAIL or not PASSWORD:
+        print("Faltan datos del correo")
 
-        raise Exception(
-            "No existe EMAIL_USER o EMAIL_PASSWORD"
-        )
+        return
 
 
 
@@ -174,15 +172,15 @@ def enviar_correo(archivo):
     )
 
 
-    mensaje["From"] = EMAIL
+    mensaje["From"] = EMAIL_USER
 
 
-    mensaje["To"] = DESTINO
+    mensaje["To"] = CORREO_DESTINO
 
 
 
     mensaje.set_content(
-        "Se adjunta documento generado por el sistema."
+        "Se adjunta el documento generado."
     )
 
 
@@ -206,31 +204,40 @@ def enviar_correo(archivo):
 
 
 
-    with smtplib.SMTP_SSL(
-        "smtp.gmail.com",
-        465
-    ) as servidor:
+    try:
+
+        with smtplib.SMTP_SSL(
+            "smtp.gmail.com",
+            465
+        ) as servidor:
 
 
-        servidor.login(
-            EMAIL,
-            PASSWORD
+            servidor.login(
+                EMAIL_USER,
+                EMAIL_PASSWORD
+            )
+
+
+            servidor.send_message(
+                mensaje
+            )
+
+
+        print("CORREO ENVIADO CORRECTAMENTE")
+
+
+    except Exception as error:
+
+        print(
+            "ERROR ENVIANDO CORREO:",
+            error
         )
 
 
-        servidor.send_message(
-            mensaje
-        )
 
-
-
-    print("=== CORREO ENVIADO CORRECTAMENTE ===")
-
-
-
-# =====================================
+# ==============================
 # PAGINA PRINCIPAL
-# =====================================
+# ==============================
 
 @app.route(
     "/",
@@ -285,22 +292,15 @@ def index():
         )
 
 
-
-        # ENVIAR CORREO AUTOMÁTICO
-
-        try:
-
-            enviar_correo(
-                archivo
-            )
+        print("DOCUMENTO CREADO:", archivo)
 
 
-        except Exception as error:
 
-            print(
-                "ERROR DEL CORREO:",
-                error
-            )
+        # ENVIO AUTOMATICO
+
+        enviar_correo(
+            archivo
+        )
 
 
 
@@ -319,9 +319,9 @@ def index():
 
 
 
-# =====================================
-# EJECUTAR
-# =====================================
+# ==============================
+# INICIAR
+# ==============================
 
 if __name__ == "__main__":
 
