@@ -98,12 +98,12 @@ def index():
             doc.save(archivo_salida)
 
             # ENVIAR CORREO EN SEGUNDO PLANO (IMPORTANTE PARA RENDER)
-            if correo:
-                threading.Thread(
-                    target=enviar_correo,
-                    args=(correo, archivo_salida)
-                ).start()
-
+           # ENVIAR CORREO
+if correo:
+    enviar_correo(
+        correo,
+        archivo_salida
+    )
             return send_file(
                 archivo_salida,
                 as_attachment=True,
