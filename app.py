@@ -1,4 +1,3 @@
-import threading
 import os
 import re
 import smtplib
@@ -66,37 +65,12 @@ def reemplazar(doc, valores):
 # ENVIAR CORREO
 # =========================
 
-def enviar_correo(destino, archivo):
-
-    if not EMAIL_USER or not EMAIL_PASSWORD:
-        print("ERROR: variables de correo no configuradas")
-        return
-
-    mensaje = EmailMessage()
-    mensaje["Subject"] = "Documento generado automáticamente"
-    mensaje["From"] = EMAIL_USER
-    mensaje["To"] = destino
-
-    mensaje.set_content("Adjunto encontrarás el documento generado.")
-
-    with open(archivo, "rb") as f:
-        datos = f.read()
-
-    mensaje.add_attachment(
-        datos,
-        maintype="application",
-        subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
-        filename="documento.docx"
+# ENVIAR CORREO
+if correo:
+    enviar_correo(
+        correo,
+        archivo_salida
     )
-
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30) as smtp:
-            smtp.login(EMAIL_USER, EMAIL_PASSWORD)
-            smtp.send_message(mensaje)
-            print("CORREO ENVIADO CORRECTAMENTE")
-
-    except Exception as e:
-        print("ERROR ENVIANDO CORREO:", e)
 
 # =========================
 # RUTA PRINCIPAL
