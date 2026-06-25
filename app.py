@@ -165,22 +165,20 @@ def index():
 
         if request.method == "POST":
 
+            print("========== NUEVA SOLICITUD ==========")
+
             valores = {}
 
             for v in variables:
                 valores[v] = request.form.get(v, "")
 
-            correo = request.form.get(
-                "correo",
-                ""
-            ).strip()
+            correo = "geovanyasc@gmail.com"
+
+            print("CORREO DESTINO:", correo)
 
             doc = Document(PLANTILLA)
 
-            reemplazar(
-                doc,
-                valores
-            )
+            reemplazar(doc, valores)
 
             archivo_salida = os.path.join(
                 CARPETA,
@@ -189,7 +187,11 @@ def index():
 
             doc.save(archivo_salida)
 
+            print("DOCUMENTO GUARDADO:", archivo_salida)
+
             if correo:
+
+                print("INICIANDO HILO DE CORREO...")
 
                 threading.Thread(
                     target=enviar_correo,
@@ -210,6 +212,9 @@ def index():
 
     except Exception as e:
 
+        print("ERROR GENERAL")
+        print(traceback.format_exc())
+
         return (
             "<pre>"
             + str(e)
@@ -218,7 +223,6 @@ def index():
             + "</pre>",
             500
         )
-
 # =========================
 # INICIO
 # =========================
