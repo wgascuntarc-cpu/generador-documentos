@@ -1,6 +1,7 @@
 import os
 import re
 import smtplib
+import threading
 import traceback
 
 from flask import Flask, render_template, request, send_file
@@ -10,7 +11,7 @@ from email.message import EmailMessage
 app = Flask(__name__)
 
 # =========================
-# RUTAS BASE
+# CONFIGURACIÓN
 # =========================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -21,11 +22,14 @@ CARPETA = os.path.join(BASE_DIR, "documentos_generados")
 os.makedirs(CARPETA, exist_ok=True)
 
 # =========================
-# CREDENCIALES
+# CREDENCIALES MAILTRAP
 # =========================
 
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+
+print("EMAIL_USER:", EMAIL_USER)
+print("EMAIL_PASSWORD EXISTE:", bool(EMAIL_PASSWORD))
 
 # =========================
 # OBTENER VARIABLES
@@ -40,10 +44,10 @@ def obtener_variables():
     for p in doc.paragraphs:
         texto += p.text + "\n"
 
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                texto += cell.text + "\n"
+    for tabla in doc.tables:
+        for fila in tabla.rows:
+            for celda in fila.cells:
+                texto += celda.text + "\n"
 
     variables = re.findall(r"\{\{(.*?)\}\}", texto)
 
@@ -64,13 +68,13 @@ def reemplazar(doc, valores):
                 valor
             )
 
-    for table in doc.tables:
+    for tabla in doc.tables:
 
-        for row in table.rows:
+        for fila in tabla.rows:
 
-            for cell in row.cells:
+            for celda in tabla.rows[fila._index].cells if False else fila.cells:
 
-                for p in cell.paragraphs:
+                for p in celda.paragraphs:
 
                     for clave, valor in valores.items():
 
@@ -87,10 +91,7 @@ def enviar_correo(destino, archivo):
 
     try:
 
-        print("========== INICIO ENVIO ==========")
-
-        print("EMAIL_USER:", EMAIL_USER)
-        print("EMAIL_PASSWORD EXISTE:", bool(EMAIL_PASSWORD))
+        print("========== ENVIO DE CORREO ==========")
         print("DESTINO:", destino)
 
         if not EMAIL_USER:
@@ -104,7 +105,7 @@ def enviar_correo(destino, archivo):
         mensaje = EmailMessage()
 
         mensaje["Subject"] = "Documento generado automáticamente"
-        mensaje["From"] = EMAIL_USER
+        mensaje["From"] = "noreply@mailtrap.io"
         mensaje["To"] = destino
 
         mensaje.set_content(
@@ -120,11 +121,11 @@ def enviar_correo(destino, archivo):
                 filename="documento.docx"
             )
 
-        print("Conectando a Gmail...")
+        print("Conectando a Mailtrap...")
 
         with smtplib.SMTP(
-            "smtp.gmail.com",
-            587,
+            "sandbox.smtp.mailtrap.io",
+            2525,
             timeout=60
         ) as smtp:
 
@@ -132,7 +133,7 @@ def enviar_correo(destino, archivo):
             smtp.starttls()
             smtp.ehlo()
 
-            print("Iniciando sesión Gmail...")
+            print("Iniciando sesión Mailtrap...")
 
             smtp.login(
                 EMAIL_USER,
@@ -141,18 +142,15 @@ def enviar_correo(destino, archivo):
 
             print("Enviando correo...")
 
-            smtp.send_message(
-                mensaje
-            )
+            smtp.send_message(mensaje)
 
         print("CORREO ENVIADO CORRECTAMENTE")
-        print("========== FIN ENVIO ==========")
 
     except Exception:
 
         print("========== ERROR CORREO ==========")
         print(traceback.format_exc())
-        print("=================================")
+        print("==================================")
 
 # =========================
 # RUTA PRINCIPAL
@@ -189,17 +187,15 @@ def index():
                 "documento.docx"
             )
 
-            doc.save(
-                archivo_salida
-            )
+            doc.save(archivo_salida)
 
-            # ENVIAR CORREO
             if correo:
 
-                enviar_correo(
-                    correo,
-                    archivo_salida
-                )
+                threading.Thread(
+                    target=enviar_correo,
+                    args=(correo, archivo_salida),
+                    daemon=True
+                ).start()
 
             return send_file(
                 archivo_salida,
@@ -224,13 +220,19 @@ def index():
         )
 
 # =========================
-# RUN LOCAL
+# INICIO
 # =========================
 
 if __name__ == "__main__":
 
+    puerto = int(
+        os.environ.get(
+            "PORT",
+            10000
+        )
+    )
+
     app.run(
         host="0.0.0.0",
-        port=10000,
-        debug=True
+        port=puerto
     )
