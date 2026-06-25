@@ -19,6 +19,14 @@ input{
     margin:5px;
 }
 
+textarea{
+    width:700px;
+    height:250px;
+    padding:8px;
+    margin:5px;
+    font-family:Arial;
+}
+
 button{
     padding:10px 20px;
     background:#0066cc;
@@ -43,12 +51,24 @@ button{
 
 <br>
 
+{% if variable|lower == "justificacion" %}
+
+<textarea
+name="{{ variable }}"
+rows="10"
+cols="80"
+required
+></textarea>
+
+{% else %}
+
 <input
 type="text"
 name="{{ variable }}"
 required
 >
 
+{% endif %}
 <br><br>
 
 {% endfor %}
