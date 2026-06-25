@@ -4,7 +4,6 @@
 <head>
 
 <meta charset="UTF-8">
-
 <title>Generador de documentos</title>
 
 <style>
@@ -32,26 +31,19 @@ button{
 
 </head>
 
-
 <body>
-
 
 <h1>Generador de documentos</h1>
 
-
 <form method="POST">
-
 
 {% for variable in variables %}
 
-
-<label>
-{{ variable }}
-</label>
+<label>{{ variable }}</label>
 
 <br>
 
-<input 
+<input
 type="text"
 name="{{ variable }}"
 required
@@ -59,32 +51,13 @@ required
 
 <br><br>
 
-
 {% endfor %}
-
-
-<label>
-Correo (opcional)
-</label>
-
-<br>
-
-<input 
-type="email"
-name="correo"
->
-
-
-<br><br>
-
 
 <button type="submit">
 Generar documento
 </button>
 
-
 </form>
-
 
 </body>
 
